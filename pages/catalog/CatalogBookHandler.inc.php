@@ -81,6 +81,8 @@ class CatalogBookHandler extends Handler {
 		// determine which pubId plugins are enabled.
 		$pubIdPlugins = PluginRegistry::loadCategory('pubIds', true);
 		$enabledPubIdTypes = array();
+		$metaCustomHeaders = '';
+
 		foreach ((array) $pubIdPlugins as $plugin) {
 			if ($plugin->getEnabled()) {
 				$enabledPubIdTypes[] = $plugin->getPubIdType();
@@ -90,11 +92,15 @@ class CatalogBookHandler extends Handler {
 					if ($publicationFormat->getStoredPubId($plugin->getPubIdType()) == '') {
 						$plugin->getPubId($publicationFormat);
 					}
+					if ($plugin->getPubIdType() == 'doi') {
+						$pubId = strip_tags($publicationFormat->getStoredPubId('doi'));
+						$metaCustomHeaders .= '<meta name="DC.Identifier.DOI" content="' . $pubId . '"/><meta name="citation_doi" content="'. $pubId . '"/>';
+					}
 				}
 			}
 		}
 		$templateMgr->assign('enabledPubIdTypes', $enabledPubIdTypes);
-
+		$templateMgr->assign('metaCustomHeaders', $metaCustomHeaders);
 		// e-Commerce
 		import('classes.payment.omp.OMPPaymentManager');
 		$ompPaymentManager = new OMPPaymentManager($request);
@@ -140,7 +146,17 @@ class CatalogBookHandler extends Handler {
 	 * @param $request PKPRequest
 	 */
 	function view($args, $request) {
-		$this->download($args, $request, true);
+		$this->download($args, $request, 1);
+	}
+	
+		/**
+	 * Use an inline viewer to view a published monograph publication
+	 * format file.
+	 * @param $args array
+	 * @param $request PKPRequest
+	 */
+	function detail_view($args, $request) {
+		$this->download($args, $request, 2);
 	}
 
 	/**
@@ -149,7 +165,7 @@ class CatalogBookHandler extends Handler {
 	 * @param $request PKPRequest
 	 * @param $view boolean True iff inline viewer should be used, if available
 	 */
-	function download($args, $request, $view = false) {
+	function download($args, $request, $view = 0) {
 		$this->setupTemplate($request);
 		$press = $request->getPress();
 
@@ -176,32 +192,39 @@ class CatalogBookHandler extends Handler {
 			// Paid purchase or open access.
 			if (!$user && $press->getSetting('restrictMonographAccess')) {
 				// User needs to register first.
-				return $request->redirect(null, 'login');
+				return $request->redirect(null, 'login', null, null, 
+				array('source' => 
+				$request->getRequestUrl() ) );
+				//$request->url($request->getContext()->getPath(), null, null, array($monographId, $publicationFormatId, $fileIdAndRevision))));
+				//$request->redirect(null, 'login') ) );
 			}
 
 			// If inline viewing is requested, permit plugins to
 			// handle the document.
-			if ($view) {
-				PluginRegistry::loadCategory('viewableFiles', true);
+			PluginRegistry::loadCategory('viewableFiles', true);
+			if ($view == 1) {
 				if (HookRegistry::call('CatalogBookHandler::view', array(&$this, &$publishedMonograph, &$submissionFile))) {
 					// If the plugin handled the hook, prevent further default activity.
 					exit();
 				}
+			} else if ($view == 2)  {
+				return HookRegistry::call('CatalogBookHandler::detail_view', array(&$this, &$publishedMonograph, &$submissionFile, &$fileId, &$revision));
 			}
 
 			// Inline viewer not available, or viewing not wanted.
 			// Download the file.
-			if (!HookRegistry::call('CatalogBookHandler::download', array(&$this, &$publishedMonograph, &$submissionFile))) {
+			$inline = false;
+			if (!HookRegistry::call('CatalogBookHandler::download', array(&$this, &$publishedMonograph, &$submissionFile, &$inline))) {
 				import('lib.pkp.classes.file.SubmissionFileManager');
 				$monographFileManager = new SubmissionFileManager($publishedMonograph->getContextId(), $monographId);
-				return $monographFileManager->downloadFile($fileId, $revision);
+				return $monographFileManager->downloadFile($fileId, $revision, $inline);
 			}
 		}
 
 		// Fall-through: user needs to pay for purchase.
 
 		// Users that are not logged in need to register/login first.
-		if (!$user) return $request->redirect(null, 'login', null, null, array('source' => $request->url(null, null, null, array($monographId, $publicationFormatId, $fileIdAndRevision))));
+		if (!$user) return $request->redirect(null, 'login', null, null, array('source' => $request->url($request->getContext()->getPath(), null, null, array($monographId, $publicationFormatId, $fileIdAndRevision))));
 
 		// They're logged in but need to pay to view.
 		import('classes.payment.omp.OMPPaymentManager');
