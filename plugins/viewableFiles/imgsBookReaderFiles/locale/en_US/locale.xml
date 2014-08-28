@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE locale SYSTEM "../../../../../lib/pkp/dtd/locale.dtd">
+
+<!--
+  * plugins/viewableFiles/imgsBookReaderFiles/locale/en_US/locale.xml
+  *
+  * Copyright (c) 2014 FU Berlin, Germany
+  * Distributed under the GNU GPL v2. For full terms see the file docs/COPYING.
+  *
+  * Localization strings.
+  -->
+
+<locale name="en_US" full_name="U.S. English">
+	<message key="plugins.viewableFiles.imgsBookReaderFiles.displayName">BookReader Article Galley</message>
+	<message key="plugins.viewableFiles.imgsBookReaderFiles.description">This plugin provides rendering support for BookReader Article Galleys.</message>
+</locale>

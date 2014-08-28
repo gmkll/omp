@@ -1,0 +1,16 @@
+/*
+ * Custom overrides for BookReader OMP.
+ */
+
+/* Hide print and embed functionality */
+/* #BRtoolbar .embed, .print {
+    display: none;
+}*/
+
+a.logo {
+    display: block;
+    float: left;
+    width: 40px;
+    height: 40px;
+    margin: 0 5px;
+    background: transparent url(images/omp_logo.png) no-repeat 0 0;
